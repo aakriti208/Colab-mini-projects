@@ -353,3 +353,19 @@ wandb_logger.experiment.config.update({
     "max_length": 128,
     "dropout": 0.3
 })
+
+
+# Model checkpoint - saves best model
+checkpoint_callback = ModelCheckpoint(
+    monitor='val_loss',
+    dirpath='checkpoints/',
+    filename='goemotions-{epoch:02d}-{val_loss:.2f}',
+    save_top_k=3,
+    mode='min'
+)
+
+# Early stopping - stops training if no improvement
+early_stop_callback = EarlyStopping(
+    monitor='val_loss',
+    patience=3,
+    verbose=True,)
