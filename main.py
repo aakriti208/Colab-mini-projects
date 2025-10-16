@@ -85,3 +85,71 @@ print(dataset)
 print(f"Total emotions: {len(EMOTIONS)}")  # Should be 27
 
 
+def preprocess_goemotions():
+    # Initialize tokenizer
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    # Check what splits we have
+    available_splits = list(dataset.keys())
+    print(f"Available splits: {available_splits}")
+
+    # Get train data
+    full_train_data = dataset['train']
+
+    # Create validation split (85/15)
+    print("Creating validation split from training data...")
+    train_size = int(0.85 * len(full_train_data))
+    indices = list(range(len(full_train_data)))
+
+    train_indices = indices[:train_size]
+    val_indices = indices[train_size:]
+
+    train_data = full_train_data.select(train_indices)
+    val_data = full_train_data.select(val_indices)
+
+    # Create test split from validation (50/50)
+    print("Creating test split from validation data...")
+    val_size = len(val_data) // 2
+    val_indices_list = list(range(len(val_data)))
+
+    new_val_indices = val_indices_list[:val_size]
+    test_indices = val_indices_list[val_size:]
+
+    new_val_data = val_data.select(new_val_indices)
+    test_data = val_data.select(test_indices)
+    val_data = new_val_data
+
+    print(f"\nFinal split sizes:")
+    print(f"Train: {len(train_data)}")
+    print(f"Validation: {len(val_data)}")
+    print(f"Test: {len(test_data)}")
+
+    # Create datasets
+    train_dataset = GoEmotionsDataset(train_data, tokenizer)
+    val_dataset = GoEmotionsDataset(val_data, tokenizer)
+    test_dataset = GoEmotionsDataset(test_data, tokenizer)
+
+    # Create dataloaders - REDUCED num_workers to avoid multiprocessing issues
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=0)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=0)
+
+    return train_loader, val_loader, test_loader, tokenizer
+
+# Execute
+train_loader, val_loader, test_loader, tokenizer = preprocess_goemotions()
+
+print(f"\n✓ Training batches: {len(train_loader)}")
+print(f"✓ Validation batches: {len(val_loader)}")
+print(f"✓ Test batches: {len(test_loader)}")
+
+# Test a batch
+batch = next(iter(train_loader))
+print(f"\nBatch shapes:")
+print(f"Input IDs: {batch['input_ids'].shape}")
+print(f"Attention mask: {batch['attention_mask'].shape}")
+print(f"Labels: {batch['labels'].shape}")  # Should be [32, 27]
+print(f"\nSample label vector: {batch['labels'][0]}")
+print(f"Number of active emotions in first sample: {batch['labels'][0].sum().item()}")
+
+
