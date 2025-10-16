@@ -325,3 +325,9 @@ print(f"\nSample predictions (first 10 emotions): {predictions[0][:10]}")
 print(f"Actual labels (first 10 emotions): {batch['labels'][0][:10].int()}")
 
 
+# Install W&B
+!pip install wandb
+
+# Login to W&B
+import wandb
+wandb.login()
