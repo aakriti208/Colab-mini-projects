@@ -171,3 +171,140 @@ print(f"95th percentile: {sorted(text_lengths)[int(len(text_lengths)*0.95)]} wor
 print(f"Max length: {max(text_lengths)} words")
 
 
+import pytorch_lightning as pl
+import torch
+import torch.nn as nn
+from transformers import BertModel
+from torchmetrics import Accuracy, Precision, Recall, F1Score
+
+class SentimentClassifier(pl.LightningModule):
+    def __init__(self, n_classes=28, learning_rate=2e-5, dropout=0.3):
+        super().__init__()
+        self.save_hyperparameters()
+
+        # Load pre-trained BERT
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+
+        # Dropout layer
+        self.dropout = nn.Dropout(dropout)
+
+        # Classification head for multi-label (28 emotions)
+        self.classifier = nn.Linear(self.bert.config.hidden_size, n_classes)
+
+        # Loss function for multi-label classification
+        self.criterion = nn.BCEWithLogitsLoss()
+
+        # Metrics (using threshold of 0.5)
+        self.train_accuracy = Accuracy(task='multilabel', num_labels=n_classes, threshold=0.5)
+        self.val_accuracy = Accuracy(task='multilabel', num_labels=n_classes, threshold=0.5)
+        self.test_accuracy = Accuracy(task='multilabel', num_labels=n_classes, threshold=0.5)
+
+    def forward(self, input_ids, attention_mask):
+        # Get BERT output
+        outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+
+        # Use [CLS] token representation
+        pooled_output = outputs.pooler_output
+
+        # Apply dropout
+        output = self.dropout(pooled_output)
+
+        # Classification
+        logits = self.classifier(output)
+
+        return logits
+
+    def training_step(self, batch, batch_idx):
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        labels = batch['labels']
+
+        # Forward pass
+        logits = self(input_ids, attention_mask)
+
+        # Calculate loss
+        loss = self.criterion(logits, labels)
+
+        # Calculate accuracy
+        preds = torch.sigmoid(logits)
+        acc = self.train_accuracy(preds, labels.int())
+
+        # Log metrics
+        self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train_acc', acc, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        labels = batch['labels']
+
+        # Forward pass
+        logits = self(input_ids, attention_mask)
+
+        # Calculate loss
+        loss = self.criterion(logits, labels)
+
+        # Calculate accuracy
+        preds = torch.sigmoid(logits)
+        acc = self.val_accuracy(preds, labels.int())
+
+        # Log metrics
+        self.log('val_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_acc', acc, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        labels = batch['labels']
+
+        # Forward pass
+        logits = self(input_ids, attention_mask)
+
+        # Calculate loss
+        loss = self.criterion(logits, labels)
+
+        # Calculate accuracy
+        preds = torch.sigmoid(logits)
+        acc = self.test_accuracy(preds, labels.int())
+
+        # Log metrics
+        self.log('test_loss', loss, on_step=False, on_epoch=True)
+        self.log('test_acc', acc, on_step=False, on_epoch=True)
+
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate)
+
+        # Learning rate scheduler
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=2,
+            verbose=True
+        )
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'monitor': 'val_loss'
+            }
+        }
+
+# Initialize model
+model = SentimentClassifier(n_classes=28, learning_rate=2e-5, dropout=0.3)
+
+print("Model initialized!")
+print(f"Total parameters: {sum(p.numel() for p in model.parameters()):,}")
+print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+
+
