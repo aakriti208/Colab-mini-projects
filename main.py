@@ -308,3 +308,20 @@ print(f"Total parameters: {sum(p.numel() for p in model.parameters()):,}")
 print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
 
+# Test with one batch
+batch = next(iter(train_loader))
+logits = model(batch['input_ids'], batch['attention_mask'])
+
+print(f"\nModel output shape: {logits.shape}")  # Should be [32, 28]
+print(f"Sample logits (first 5 emotions): {logits[0][:5]}")
+
+# Convert to probabilities
+probs = torch.sigmoid(logits)
+print(f"\nSample probabilities (first 5 emotions): {probs[0][:5]}")
+
+# Get predictions (threshold = 0.5)
+predictions = (probs > 0.5).int()
+print(f"\nSample predictions (first 10 emotions): {predictions[0][:10]}")
+print(f"Actual labels (first 10 emotions): {batch['labels'][0][:10].int()}")
+
+
