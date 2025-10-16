@@ -331,3 +331,25 @@ print(f"Actual labels (first 10 emotions): {batch['labels'][0][:10].int()}")
 # Login to W&B
 import wandb
 wandb.login()
+
+
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
+
+# Initialize W&B logger
+wandb_logger = WandbLogger(
+    project='goemotions-sentiment-analysis',
+    name='bert-multilabel-baseline',
+    log_model=True
+)
+
+# Log hyperparameters
+wandb_logger.experiment.config.update({
+    "model": "bert-base-uncased",
+    "task": "multi-label classification",
+    "num_emotions": 28,
+    "learning_rate": 2e-5,
+    "batch_size": 32,
+    "max_length": 128,
+    "dropout": 0.3
+})
