@@ -153,3 +153,21 @@ print(f"\nSample label vector: {batch['labels'][0]}")
 print(f"Number of active emotions in first sample: {batch['labels'][0].sum().item()}")
 
 
+# Analyze text lengths to determine optimal max_length
+text_lengths = [len(text.split()) for text in dataset['train']['text']]
+
+plt.figure(figsize=(12, 5))
+plt.hist(text_lengths, bins=50, edgecolor='black')
+plt.axvline(x=128, color='r', linestyle='--', label='Max length (128 tokens)', linewidth=2)
+plt.title('Distribution of Text Lengths in GoEmotions')
+plt.xlabel('Number of Words')
+plt.ylabel('Frequency')
+plt.legend()
+plt.show()
+
+print(f"Average length: {sum(text_lengths)/len(text_lengths):.2f} words")
+print(f"Median length: {sorted(text_lengths)[len(text_lengths)//2]} words")
+print(f"95th percentile: {sorted(text_lengths)[int(len(text_lengths)*0.95)]} words")
+print(f"Max length: {max(text_lengths)} words")
+
+
